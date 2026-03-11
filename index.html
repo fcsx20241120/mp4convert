@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MP4 文件上传</title>
+    <script src="https://unpkg.com/vue@3.4.21/dist/vue.global.js"></script>
+    <script>
+        window.addEventListener('error', function(e) {
+            console.error('加载错误:', e.message);
+        });
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+
+        .upload-area {
+            border: 2px dashed #667eea;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #f8f9ff;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: #f0f2ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #764ba2;
+            background: #e8ebff;
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .upload-text {
+            color: #666;
+            font-size: 16px;
+        }
+
+        .upload-hint {
+            color: #999;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .progress-container {
+            margin-top: 30px;
+            display: none;
+        }
+
+        .progress-container.show {
+            display: block;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .progress-text {
+            text-align: center;
+            margin-top: 10px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .file-info {
+            margin-top: 30px;
+            background: #f8f9ff;
+            border-radius: 12px;
+            padding: 25px;
+            display: none;
+        }
+
+        .file-info.show {
+            display: block;
+            animation: slideIn 0.5s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .info-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .info-item:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            color: #666;
+            font-weight: 500;
+        }
+
+        .info-value {
+            color: #333;
+            font-weight: 600;
+        }
+
+        .error-message {
+            color: #e74c3c;
+            text-align: center;
+            margin-top: 15px;
+            padding: 10px;
+            background: #ffe6e6;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .convert-btn {
+            width: 100%;
+            padding: 12px 24px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+        }
+
+        .convert-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .convert-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .convert-progress-container {
+            margin-top: 20px;
+            display: none;
+        }
+
+        .convert-progress-container.show {
+            display: block;
+        }
+
+        .convert-status {
+            text-align: center;
+            margin-top: 10px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .action-btn {
+            flex: 1;
+            padding: 12px 24px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .action-btn.secondary {
+            background: linear-gradient(90deg, #6c757d, #495057);
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="container">
+            <h1>📹 MP4 文件上传</h1>
+            
+            <div 
+                v-if="!fileInfo"
+                class="upload-area" 
+                @click="triggerFileInput"
+                @dragover.prevent="dragover = true"
+                @dragleave.prevent="dragover = false"
+                @drop.prevent="handleDrop"
+                :class="{ dragover: dragover }"
+            >
+                <div class="upload-icon">📁</div>
+                <div class="upload-text">点击或拖拽文件到此处</div>
+                <div class="upload-hint">仅支持 MP4 格式文件</div>
+            </div>
+
+            <input 
+                type="file" 
+                id="fileInput" 
+                accept=".mp4"
+                @change="handleFileSelect"
+            >
+
+            <div class="progress-container" :class="{ show: uploading }">
+                <div class="progress-bar">
+                    <div class="progress-fill" :style="{ width: progress + '%' }"></div>
+                </div>
+                <div class="progress-text">上传进度：{{ progress }}%</div>
+            </div>
+
+            <div class="error-message" :class="{ show: error }">
+                {{ errorMessage }}
+            </div>
+
+            <div class="file-info" :class="{ show: fileInfo }" v-if="fileInfo">
+                <div class="info-title">📋 {{ isConverted ? '转换后文件信息' : '文件信息' }}</div>
+                <div class="info-item">
+                    <span class="info-label">文件名称</span>
+                    <span class="info-value">{{ fileInfo.filename }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">文件大小</span>
+                    <span class="info-value">{{ formatFileSize(fileInfo.size) }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">上传时间</span>
+                    <span class="info-value">{{ fileInfo.upload_time }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">编码格式</span>
+                    <span class="info-value">{{ fileInfo.codec }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">分辨率</span>
+                    <span class="info-value">{{ fileInfo.resolution }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">视频时长</span>
+                    <span class="info-value">{{ formatDuration(fileInfo.duration) }}</span>
+                </div>
+
+                <div v-if="!fileInfo.is_h264 && !isConverted" class="action-buttons">
+                    <button class="action-btn" @click="convertVideo">
+                        🔄 转换为 H.264 格式
+                    </button>
+                    <button class="action-btn secondary" @click="resetUpload">
+                        ↩️ 重新上传
+                    </button>
+                </div>
+
+                <div v-if="isConverted" class="action-buttons">
+                    <button class="action-btn" @click="resetUpload">
+                        ↩️ 继续上传
+                    </button>
+                </div>
+
+                <div class="convert-progress-container" :class="{ show: converting }">
+                    <div class="progress-bar">
+                        <div class="progress-fill" :style="{ width: convertProgress + '%' }"></div>
+                    </div>
+                    <div class="convert-status">{{ convertStatus }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    dragover: false,
+                    uploading: false,
+                    progress: 0,
+                    error: false,
+                    errorMessage: '',
+                    fileInfo: null,
+                    converting: false,
+                    convertProgress: 0,
+                    convertStatus: '',
+                    isConverted: false,
+                    originalFile: null
+                };
+            },
+            methods: {
+                triggerFileInput() {
+                    document.getElementById('fileInput').click();
+                },
+                handleDrop(e) {
+                    this.dragover = false;
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) {
+                        this.validateAndUpload(files[0]);
+                    }
+                },
+                handleFileSelect(e) {
+                    const files = e.target.files;
+                    if (files.length > 0) {
+                        this.validateAndUpload(files[0]);
+                    }
+                },
+                validateAndUpload(file) {
+                    if (!file.name.toLowerCase().endsWith('.mp4')) {
+                        this.error = true;
+                        this.errorMessage = '只支持 MP4 格式文件';
+                        this.fileInfo = null;
+                        return;
+                    }
+                    this.error = false;
+                    this.originalFile = file;
+                    this.uploadFile(file);
+                },
+                uploadFile(file) {
+                    this.uploading = true;
+                    this.progress = 0;
+                    this.error = false;
+                    this.fileInfo = null;
+                    this.isConverted = false;
+
+                    const formData = new FormData();
+                    formData.append('file', file);
+
+                    const xhr = new XMLHttpRequest();
+                    
+                    xhr.upload.addEventListener('progress', (e) => {
+                        if (e.lengthComputable) {
+                            this.progress = Math.round((e.loaded / e.total) * 100);
+                        }
+                    });
+
+                    xhr.addEventListener('load', () => {
+                        this.uploading = false;
+                        if (xhr.status === 200) {
+                            const response = JSON.parse(xhr.responseText);
+                            if (response.success) {
+                                this.fileInfo = response;
+                                this.fileInfo.is_h264 = response.codec === 'H.264';
+                            } else {
+                                this.error = true;
+                                this.errorMessage = response.error || '上传失败';
+                            }
+                        } else {
+                            this.error = true;
+                            try {
+                                const response = JSON.parse(xhr.responseText);
+                                this.errorMessage = response.error || '上传失败';
+                            } catch {
+                                this.errorMessage = '上传失败，请重试';
+                            }
+                        }
+                    });
+
+                    xhr.addEventListener('error', () => {
+                        this.uploading = false;
+                        this.error = true;
+                        this.errorMessage = '网络错误，请检查连接';
+                    });
+
+                    xhr.open('POST', '/upload');
+                    xhr.send(formData);
+                },
+                convertVideo() {
+                    if (!this.fileInfo || !this.originalFile) {
+                        console.error('缺少 fileInfo 或 originalFile');
+                        return;
+                    }
+
+                    this.converting = true;
+                    this.convertProgress = 0;
+                    this.convertStatus = '开始转换...';
+
+                    const formData = new FormData();
+                    formData.append('file', this.originalFile);
+
+                    const xhr = new XMLHttpRequest();
+                    
+                    xhr.upload.addEventListener('progress', (e) => {
+                        if (e.lengthComputable) {
+                            const percent = Math.round((e.loaded / e.total) * 100);
+                            this.convertProgress = percent;
+                            this.convertStatus = `转换中：${percent}%`;
+                        }
+                    });
+
+                    xhr.addEventListener('load', () => {
+                        this.converting = false;
+                        console.log('转换响应状态:', xhr.status);
+                        console.log('转换响应内容:', xhr.responseText);
+                        
+                        if (xhr.status === 200) {
+                            try {
+                                const response = JSON.parse(xhr.responseText);
+                                console.log('解析后的响应:', response);
+                                if (response.success) {
+                                    this.convertProgress = 100;
+                                    this.convertStatus = '转换完成！';
+                                    this.fileInfo = response;
+                                    this.fileInfo.is_h264 = true;
+                                    this.isConverted = true;
+                                } else {
+                                    this.error = true;
+                                    this.errorMessage = response.error || '转换失败';
+                                }
+                            } catch (e) {
+                                console.error('JSON 解析错误:', e);
+                                this.error = true;
+                                this.errorMessage = '响应解析失败：' + e.message;
+                            }
+                        } else {
+                            this.error = true;
+                            try {
+                                const response = JSON.parse(xhr.responseText);
+                                this.errorMessage = response.error || '转换失败';
+                            } catch {
+                                this.errorMessage = '转换失败，请重试';
+                            }
+                        }
+                    });
+
+                    xhr.addEventListener('error', () => {
+                        this.converting = false;
+                        this.error = true;
+                        this.errorMessage = '网络错误，请检查连接';
+                    });
+
+                    xhr.open('POST', '/convert');
+                    xhr.send(formData);
+                },
+                resetUpload() {
+                    this.fileInfo = null;
+                    this.isConverted = false;
+                    this.originalFile = null;
+                    this.error = false;
+                    this.errorMessage = '';
+                    document.getElementById('fileInput').value = '';
+                },
+                formatFileSize(bytes) {
+                    if (bytes === 0) return '0 B';
+                    const k = 1024;
+                    const sizes = ['B', 'KB', 'MB', 'GB'];
+                    const i = Math.floor(Math.log(bytes) / Math.log(k));
+                    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+                },
+                formatDuration(seconds) {
+                    const mins = Math.floor(seconds / 60);
+                    const secs = Math.floor(seconds % 60);
+                    return `${mins}分${secs}秒`;
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
